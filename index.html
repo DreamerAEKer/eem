@@ -541,6 +541,9 @@
                 <li class="nav-item" onclick="app.navigate('equipment')">
                     <i class='bx bxs-devices'></i> อุปกรณ์
                 </li>
+                <li class="nav-item" onclick="app.navigate('calendar')">
+                    <i class='bx bxs-calendar'></i> ปฏิทินงาน
+                </li>
                 <li style="margin-top: auto; border-top: 1px solid var(--border); margin-bottom: 0.5rem"></li>
                 <li class="nav-item" onclick="app.openSettings()">
                     <i class='bx bx-cog'></i>
@@ -561,13 +564,6 @@
                         <div class="page-title" id="pageHeader">
                             <h1>Dashboard</h1>
                             <p>ภาพรวมข้อมูลทั้งหมด</p>
-                        </div>
-                    </div>
-                    <div class="user-profile">
-                        <div class="avatar">A</div>
-                        <div class="user-info">
-                            <div class="name">Admin User</div>
-                            <div class="role">System Admin</div>
                         </div>
                     </div>
                 </div>
@@ -641,6 +637,25 @@
                             <option value="Manager">Manager</option>
                         </select>
                     </div>
+                </div>
+
+                <!-- Entitlement Data -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label">วันที่เริ่มงาน (Start Date)</label>
+                        <input type="date" name="startDate" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">ประเภทการจ้าง</label>
+                        <select name="employmentType" class="form-select" required>
+                            <option value="Monthly">พนักงานรายเดือน</option>
+                            <option value="Daily">ลูกจ้างรายวัน</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">วันพักร้อนยกยอด (Carry Over) (วัน)</label>
+                    <input type="number" name="carryOver" class="form-input" min="0" step="0.5" value="0">
                 </div>
                 <!-- Shift and Time -->
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
@@ -760,12 +775,25 @@
                         </select>
                     </div>
                     <div class="form-group" style="margin-bottom:0">
-                        <label class="form-label">วันที่</label>
-                        <input type="date" name="date" class="form-input" required>
+                        <label class="form-label">ตั้งแต่วันที่</label>
+                        <input type="date" name="startDate" id="leaveStartDate" class="form-input" required
+                            onchange="app.calculateLeaveDays()">
                     </div>
                     <div class="form-group" style="margin-bottom:0">
-                        <label class="form-label">จำนวน (วัน)</label>
-                        <input type="number" name="days" class="form-input" min="0.5" step="0.5" value="1" required>
+                        <label class="form-label">ถึงวันที่</label>
+                        <input type="date" name="endDate" id="leaveEndDate" class="form-input" required
+                            onchange="app.calculateLeaveDays()">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label">รวม (วัน)</label>
+                        <input type="number" name="days" id="leaveDaysCount" class="form-input" min="0.5" step="0.5"
+                            value="1" readonly style="background: rgba(0,0,0,0.2); cursor: not-allowed;">
+                    </div>
+
+                    <!-- Entitlement Stats Display -->
+                    <div id="leaveEntitlementStats"
+                        style="grid-column: 1 / -1; display: flex; gap: 1rem; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; font-size: 0.9em; align-items: center;">
+                        <span style="color: var(--text-muted)">กำลังคำนวณสิทธิ์...</span>
                     </div>
                     <div class="form-group" style="margin-bottom:0; grid-column: span 3;">
                         <input type="text" name="note" class="form-input" placeholder="รายละเอียด (ระบุเหตุผล)...">
@@ -776,7 +804,7 @@
                     <table style="font-size: 0.9em;">
                         <thead>
                             <tr>
-                                <th>วันที่</th>
+                                <th>ช่วงวันที่</th>
                                 <th>ประเภท</th>
                                 <th>รายละเอียด</th>
                                 <th>จำนวน</th>
@@ -831,8 +859,25 @@
                     statuses: ['ปกติ', 'ชำรุด', 'ส่งซ่อม', 'สูญหาย', 'เลิกใช้งาน'],
                     levels: ['Junior', 'Middle', 'Senior', 'Lead', 'Manager'],
                     shifts: ['เวร ก.', 'เวร ข.', 'เวรกลาง'],
+                    // Definiton for Shifts (Mapping Name -> Rules)
+                    // days: 0=Sun, 1=Mon, ..., 6=Sat
+                    shiftDefinitions: {
+                        'เวร ก.': { start: '08:00', end: '16:00', days: [1, 2, 3, 4, 5] },
+                        'เวร ข.': { start: '09:00', end: '17:00', days: [1, 2, 3, 4, 5] },
+                        'เวรกลาง': { start: '12:00', end: '20:00', days: [1, 2, 3, 4, 5] }
+                    },
                     password: '37977310501' // Default Password
                 };
+
+                // Ensure shift definitions exist if upgrading from old version
+                if (!this.settings.shiftDefinitions) {
+                    this.settings.shiftDefinitions = {
+                        'เวร ก.': { start: '08:00', end: '16:00', days: [1, 2, 3, 4, 5] },
+                        'เวร ข.': { start: '09:00', end: '17:00', days: [1, 2, 3, 4, 5] },
+                        'เวรกลาง': { start: '12:00', end: '20:00', days: [1, 2, 3, 4, 5] }
+                    };
+                    this.saveSettings();
+                }
                 // Migration limit
                 if (!this.settings.levels) this.settings.levels = ['Junior', 'Middle', 'Senior', 'Lead', 'Manager'];
                 if (!this.settings.shifts) this.settings.shifts = ['เวร ก.', 'เวร ข.', 'เวรกลาง'];
@@ -844,6 +889,14 @@
                 if (!this.settings.migrationVersion || this.settings.migrationVersion < 1) {
                     this.settings.password = '37977310501';
                     this.settings.migrationVersion = 1;
+                }
+
+                // MIGRATION (v2): Fix 'Middle Shift' definition to Mon-Fri
+                if (this.settings.migrationVersion < 2) {
+                    if (this.settings.shiftDefinitions && this.settings.shiftDefinitions['เวรกลาง']) {
+                        this.settings.shiftDefinitions['เวรกลาง'].days = [1, 2, 3, 4, 5];
+                    }
+                    this.settings.migrationVersion = 2;
                 }
 
                 this.saveSettings(); // Ensure structure is updated
@@ -1001,6 +1054,219 @@
                 }
             }
 
+            // Calendar Logic
+            calculateLeaveEntitlement(emp) {
+                if (!emp.startDate) return { total: 0, remaining: 0, used: 0 };
+
+                const start = new Date(emp.startDate);
+                const now = new Date();
+                const yearsOfService = (now - start) / (1000 * 60 * 60 * 24 * 365);
+
+                let baseRights = 0;
+
+                if (emp.employmentType === 'Daily') {
+                    baseRights = 0;
+                } else if (yearsOfService >= 10) {
+                    baseRights = 15;
+                } else {
+                    baseRights = 10;
+                }
+
+                if (emp.employmentType === 'Daily') return { total: 0, max: 0, used: 0, remaining: 0 };
+
+                // Carry Over Logic (Only for < 10 years or General? Prompt nested it under < 10)
+                // Interpretation: "If < 10 years... Max 60". 
+                // For > 10, typically same rules apply or better. I will apply 60 cap to all for consistency unless specific otherwise, 
+                // but prompts specific text says "1. ... max 60". "2. ... 15 days".
+                // I will apply the 60 cap logic to the Total (Base + CarryOver) for < 10 only as strict request.
+                // Actually, let's apply it if years < 10.
+
+                let total = baseRights + (emp.carryOver || 0);
+
+                if (yearsOfService < 10) {
+                    if (total > 60) total = 60;
+                }
+
+                // Calculate Used
+                const currentYear = now.getFullYear();
+                let used = 0;
+                if (emp.history && emp.history.leaves) {
+                    used = emp.history.leaves
+                        .filter(l => l.type === 'ลาพักร้อน' && new Date(l.startDate).getFullYear() === currentYear)
+                        .reduce((acc, l) => acc + l.days, 0);
+                }
+
+                return {
+                    total: total,
+                    used: used,
+                    remaining: Math.max(0, total - used)
+                };
+            }
+
+            // Calendar Logic
+            getEmpStatus(emp, dateObj) {
+                // Formatting
+                const year = dateObj.getFullYear();
+                const month = dateObj.getMonth() + 1;
+                const date = dateObj.getDate();
+                const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
+
+                // Check Leaves (Range Support)
+                if (emp.history && emp.history.leaves) {
+                    const onLeave = emp.history.leaves.find(l => {
+                        // New format (Start/End)
+                        if (l.startDate && l.endDate) {
+                            return dateStr >= l.startDate && dateStr <= l.endDate;
+                        }
+                        // Legacy format (Date + Days)
+                        if (l.date) {
+                            if (l.days && l.days > 1) {
+                                // Calculate End Date dynamically for display
+                                const start = new Date(l.date);
+                                const end = new Date(start);
+                                end.setDate(start.getDate() + Math.ceil(l.days) - 1);
+                                const endStr = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`;
+                                return dateStr >= l.date && dateStr <= endStr;
+                            }
+                            return l.date === dateStr;
+                        }
+                        return false;
+                    });
+                    if (onLeave) return { type: 'leave', detail: onLeave };
+                }
+
+                // Check Shift
+                const shiftName = emp.shift;
+                const def = this.settings.shiftDefinitions[shiftName];
+                // Handle different day definitions (Mon=1...Sun=0)
+                if (def && def.days.includes(dateObj.getDay())) {
+                    return { type: 'work', time: `${def.start} - ${def.end}` };
+                }
+
+                return { type: 'off' };
+            }
+
+            // ... (Rest of Store) ...
+
+            // App Methods
+            calculateLeaveDays() {
+                const startStr = document.getElementById('leaveStartDate').value;
+                const endStr = document.getElementById('leaveEndDate').value;
+                const daysInput = document.getElementById('leaveDaysCount');
+
+                if (startStr && endStr) {
+                    const start = new Date(startStr);
+                    const end = new Date(endStr);
+
+                    if (end < start) {
+                        alert('วันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่มต้น');
+                        document.getElementById('leaveEndDate').value = '';
+                        daysInput.value = 0;
+                        return;
+                    }
+
+                    // Simple difference (inclusive)
+                    const diffTime = Math.abs(end - start);
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                    daysInput.value = diffDays;
+                }
+            }
+
+            renderHistoryContent() {
+                const emp = this.store.employees.find(e => e.id === this.currentHistoryEmpId);
+                if (!emp) return;
+
+                // Stats
+                const statsEl = document.getElementById('leaveEntitlementStats');
+                if (statsEl) {
+                    const stats = this.store.calculateLeaveEntitlement(emp);
+                    statsEl.innerHTML = `
+                        <div><i class='bx bxs-pie-chart-alt-2' style="color:var(--primary)"></i> สิทธิ์ปีนี้: <b>${stats.total}</b> วัน</div>
+                        <div><i class='bx bxs-time-five' style="color:#f59e0b"></i> ใช้ไป: <b>${stats.used}</b></div>
+                        <div><i class='bx bxs-check-circle' style="color:#34d399"></i> คงเหลือ: <b>${stats.remaining}</b></div>
+                    `;
+                }
+
+                const history = emp.history || { leaves: [], training: [] };
+
+                // Render Leaves
+                const leaveRows = (history.leaves || []).map(l => {
+                    let dateDisplay = l.date ? new Date(l.date).toLocaleDateString('th-TH') : '-';
+                    if (l.startDate && l.endDate) {
+                        const d1 = new Date(l.startDate).toLocaleDateString('th-TH');
+                        const d2 = new Date(l.endDate).toLocaleDateString('th-TH');
+                        dateDisplay = d1 === d2 ? d1 : `${d1} - ${d2}`;
+                    }
+
+                    return `
+                    <tr>
+                        <td>${dateDisplay}</td>
+                        <td>${l.type}</td>
+                        <td style="color: var(--text-muted);">${l.note || '-'}</td>
+                        <td>${l.days}</td>
+                        <td><i class='bx bx-trash' style="cursor: pointer; color: #ef4444;" onclick="app.removeHistoryItem('leaves', '${l.id}')"></i></td>
+                    </tr>
+                `}).join('');
+                document.getElementById('leavesTableBody').innerHTML = leaveRows || '<tr><td colspan="5" class="empty-state" style="padding: 1rem;">ไม่มีประวัติการลา</td></tr>';
+
+                // Render Training
+                const trainRows = (history.training || []).map(t => `
+                    <tr>
+                        <td>${new Date(t.date).toLocaleDateString('th-TH')}</td>
+                        <td>${t.topic}</td>
+                        <td><i class='bx bx-trash' style="cursor: pointer; color: #ef4444;" onclick="app.removeHistoryItem('training', '${t.id}')"></i></td>
+                    </tr>
+                `).join('');
+                document.getElementById('trainingTableBody').innerHTML = trainRows || '<tr><td colspan="3" class="empty-state" style="padding: 1rem;">ไม่มีประวัติการอบรม</td></tr>';
+            }
+
+            handleAddLeave(e) {
+                e.preventDefault();
+
+                try {
+                    const formData = new FormData(e.target);
+                    // Support both old 'date' and new 'startDate/endDate' if needed, but we moved to Start/End
+                    const startDate = formData.get('startDate');
+                    const endDate = formData.get('endDate');
+                    const days = parseFloat(document.getElementById('leaveDaysCount').value);
+                    const type = formData.get('type');
+
+                    if (!startDate || !endDate) {
+                        alert('กรุณาระบุช่วงวันที่');
+                        return;
+                    }
+
+                    // Validate Entitlement if Vacation
+                    if (type === 'ลาพักร้อน') {
+                        const emp = this.store.employees.find(x => x.id === this.currentHistoryEmpId);
+                        const stats = this.store.calculateLeaveEntitlement(emp);
+                        if (days > stats.remaining) {
+                            alert(`สิทธิ์ลาพักร้อนไม่เพียงพอ! (คงเหลือ ${stats.remaining} วัน, ขอลา ${days} วัน)`);
+                            return;
+                        }
+                    }
+
+                    const item = {
+                        type: type,
+                        startDate: startDate,
+                        endDate: endDate,
+                        days: days,
+                        note: formData.get('note')
+                    };
+
+                    this.store.addHistoryItem(this.currentHistoryEmpId, 'leaves', item);
+                    e.target.reset();
+                    // Reset days count display
+                    document.getElementById('leaveDaysCount').value = 1;
+
+                    this.renderHistoryContent();
+                    alert('บันทึกข้อมูลเรียบร้อย');
+                } catch (err) {
+                    console.error('Error adding leave:', err);
+                    alert('เกิดข้อผิดพลาด: ' + err.message);
+                }
+            }
+
             // Backup & Restore
             getFullDatabase() {
                 return JSON.stringify({
@@ -1048,6 +1314,7 @@
                 };
                 this.isAuthenticated = false; // Security State
                 this.settingsTab = 'general';
+                this.calendarDate = new Date(); // Current viewing month
                 this.init();
                 this.setupDragAndDrop();
             }
@@ -1225,10 +1492,155 @@
                 } else if (this.currentView === 'settings') {
                     headerEl.innerHTML = `<h1>ตั้งค่า</h1><p>จัดการตัวเลือกต่างๆ ของระบบ</p>`;
                     viewEl.innerHTML = this.renderSettings();
+                } else if (this.currentView === 'calendar') {
+                    headerEl.innerHTML = `<h1>ปฏิทินงาน</h1><p>ตารางงานและการลาของพนักงาน</p>`;
+                    viewEl.innerHTML = this.renderCalendar();
                 }
             }
 
-            // ... (Existing Render Methods) ...
+            renderCalendar() {
+                const year = this.calendarDate.getFullYear();
+                const month = this.calendarDate.getMonth();
+                const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+                    "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+
+                const firstDay = new Date(year, month, 1);
+                const lastDay = new Date(year, month + 1, 0);
+                const daysInMonth = lastDay.getDate();
+                const startDay = firstDay.getDay(); // 0 = Sun
+
+                // Stats for this month (approx)
+                const currentMonthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
+                const totalLeaves = this.store.employees.reduce((acc, emp) => {
+                    if (!emp.history || !emp.history.leaves) return acc;
+                    const count = emp.history.leaves.filter(l => {
+                        if (l.date) return l.date.startsWith(currentMonthStr);
+                        if (l.startDate) return l.startDate.startsWith(currentMonthStr); // Count based on start date
+                        return false;
+                    }).length;
+                    return acc + count;
+                }, 0);
+
+                let calendarGrid = '';
+
+                // Empty slots before 1st
+                for (let i = 0; i < startDay; i++) {
+                    calendarGrid += `<div style="background:rgba(255,255,255,0.02); height: 120px;"></div>`;
+                }
+
+                // Days
+                for (let d = 1; d <= daysInMonth; d++) {
+                    const current = new Date(year, month, d);
+                    // FIX: Use manual formatting to avoid Timezone shift from toISOString()
+                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                    const isToday = new Date().toDateString() === current.toDateString();
+
+                    // Count
+                    let workingCount = 0;
+                    let leaveCount = 0;
+
+                    this.store.employees.forEach(emp => {
+                        const status = this.store.getEmpStatus(emp, current);
+                        if (status.type === 'work') workingCount++;
+                        if (status.type === 'leave') leaveCount++;
+                    });
+
+                    calendarGrid += `
+                        <div class="calendar-day" onclick="app.showDayDetail('${dateStr}')" 
+                             style="background: var(--bg-card); border: 1px solid var(--border); p-adding: 0.5rem; height: 120px; position: relative; cursor: pointer; transition: var(--transition); border-radius: 8px; overflow: hidden;">
+                            <div style="padding: 10px; display: flex; justify-content: space-between;">
+                                <span style="${isToday ? 'background: var(--primary); color: white; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 50%;' : 'color: var(--text-muted);'}">${d}</span>
+                            </div>
+                            <div style="padding: 0 10px; font-size: 0.8rem;">
+                                ${workingCount > 0 ? `<div style="color: #34d399; margin-bottom: 2px;">• ทำงาน: ${workingCount}</div>` : ''}
+                                ${leaveCount > 0 ? `<div style="color: var(--secondary); margin-bottom: 2px;">• ลา: ${leaveCount}</div>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div style="margin-bottom: 1rem; display: flex; gap: 1rem; align-items: center;">
+                        <button class="btn btn-secondary" onclick="app.changeMonth(-1)"><i class='bx bx-chevron-left'></i></button>
+                        <h2 style="width: 200px; text-align: center;">${monthNames[month]} ${year + 543}</h2>
+                        <button class="btn btn-secondary" onclick="app.changeMonth(1)"><i class='bx bx-chevron-right'></i></button>
+                        
+                        <div style="margin-left: auto; display: flex; gap: 1rem;">
+                            <div class="stat-badge" style="background: rgba(236, 72, 153, 0.2); color: var(--secondary); padding: 5px 15px; border-radius: 20px; font-size: 0.9em;">
+                                <i class='bx bxs-calendar-x'></i> มีการลาเดือนนี้ ${totalLeaves} ครั้ง
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; text-align: center; color: var(--text-muted); margin-bottom: 0.5rem;">
+                        <div>อา.</div><div>จ.</div><div>อ.</div><div>พ.</div><div>พฤ.</div><div>ศ.</div><div>ส.</div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px;">
+                        ${calendarGrid}
+                    </div>
+
+                    <!-- Day Detail Modal (Dynamic) -->
+                    <div class="modal-overlay" id="dayDetailModal">
+                        <div class="modal" id="dayDetailContent"></div>
+                    </div>
+                `;
+            }
+
+            changeMonth(delta) {
+                this.calendarDate.setMonth(this.calendarDate.getMonth() + delta);
+                this.render();
+            }
+
+            showDayDetail(dateStr) {
+                const date = new Date(dateStr);
+                const thaiDate = date.toLocaleDateString('th-TH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+                let workingHtml = '';
+                let leaveHtml = '';
+
+                this.store.employees.forEach(emp => {
+                    const status = this.store.getEmpStatus(emp, date);
+                    if (status.type === 'work') {
+                        workingHtml += `
+                            <div style="display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                <span>${emp.name}</span>
+                                <span style="color: #34d399; font-size: 0.8em; background: rgba(52, 211, 153, 0.1); padding: 2px 8px; border-radius: 10px;">${status.time}</span>
+                            </div>`;
+                    } else if (status.type === 'leave') {
+                        leaveHtml += `
+                            <div style="display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                <span>${emp.name}</span>
+                                <span style="color: var(--secondary); font-size: 0.8em;">${status.detail.type}</span>
+                            </div>`;
+                    }
+                });
+
+                const modalContent = `
+                    <div class="modal-header">
+                        <h3>${thaiDate}</h3>
+                        <i class='bx bx-x' style="font-size: 1.5rem; cursor: pointer;" onclick="document.getElementById('dayDetailModal').classList.remove('open')"></i>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                        <div>
+                            <h4 style="color: #34d399; margin-bottom: 1rem;">เข้างาน (${workingHtml.split('div').length / 2 - 1})</h4>
+                            <div style="max-height: 400px; overflow-y: auto;">
+                                ${workingHtml || '<div style="color: var(--text-muted); padding: 1rem; text-align: center;">ไม่มีพนักงานเข้างาน</div>'}
+                            </div>
+                        </div>
+                        <div>
+                            <h4 style="color: var(--secondary); margin-bottom: 1rem;">ลางาน (${leaveHtml.split('div').length / 2 - 1})</h4>
+                            <div style="max-height: 400px; overflow-y: auto;">
+                                ${leaveHtml || '<div style="color: var(--text-muted); padding: 1rem; text-align: center;">ไม่มีรายการลา</div>'}
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                const modal = document.getElementById('dayDetailModal');
+                const content = document.getElementById('dayDetailContent');
+                content.innerHTML = modalContent;
+                content.parentElement.classList.add('open');
+            }
 
             renderSettingsGeneral() {
                 const genTags = (items, category, colorVar) => items.map((item, index) => `
@@ -1963,7 +2375,11 @@
                 form.workTime.value = emp.workTime || '';
                 form.officePhone.value = emp.officePhone || '';
                 form.personalPhone.value = emp.personalPhone || '';
+                form.personalPhone.value = emp.personalPhone || '';
                 form.note.value = emp.note || '';
+                form.startDate.value = emp.startDate || '';
+                form.employmentType.value = emp.employmentType || 'Monthly';
+                form.carryOver.value = emp.carryOver || 0;
 
                 document.getElementById('employeeModal').classList.add('open');
             }
@@ -2029,7 +2445,10 @@
                     workTime: formData.get('workTime'),
                     officePhone: formData.get('officePhone'),
                     personalPhone: formData.get('personalPhone'),
-                    note: formData.get('note')
+                    note: formData.get('note'),
+                    startDate: formData.get('startDate'),
+                    employmentType: formData.get('employmentType'),
+                    carryOver: parseFloat(formData.get('carryOver') || 0)
                 };
 
                 if (id) {
