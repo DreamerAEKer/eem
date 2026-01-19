@@ -449,9 +449,6 @@
         @media (max-width: 768px) {
             .sidebar {
                 transform: translateX(-100%);
-                width: 280px;
-                box-shadow: 5px 0 25px rgba(0, 0, 0, 0.5);
-                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             }
 
             .sidebar.active {
@@ -460,65 +457,134 @@
 
             .main-content {
                 margin-left: 0;
-                padding: 1.5rem;
-                width: 100%;
-            }
-
-            header {
-                flex-direction: column-reverse;
-                align-items: flex-start;
-                gap: 1rem;
-                margin-bottom: 2rem;
-            }
-
-            .header-top {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                width: 100%;
             }
 
             .menu-toggle {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                margin-right: 1rem;
+                display: block;
             }
 
-            .page-title h1 {
-                font-size: 1.5rem;
+            /* Mobile Calendar overrides */
+            .calendar-grid {
+                gap: 4px !important;
             }
 
-            .stats-grid {
-                grid-template-columns: 1fr;
-                gap: 1rem;
+            .calendar-cell {
+                height: auto !important;
+                min-height: 60px;
+                padding: 4px !important;
             }
 
-            .action-bar {
-                flex-direction: column;
-                gap: 1rem;
-                align-items: stretch;
+            .calendar-stat-text {
+                display: none !important;
             }
 
-            .action-bar input {
-                width: 100% !important;
+            .calendar-stat-dot {
+                display: inline-block !important;
             }
+        }
 
-            .btn {
-                justify-content: center;
-            }
+        /* Calendar Styles */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+        }
 
-            .modal {
-                width: 95%;
-                padding: 1.5rem;
-                max-height: 90vh;
-                overflow-y: auto;
-            }
+        .calendar-cell {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            height: 120px;
+            padding: 0.5rem;
+            position: relative;
+            cursor: pointer;
+            transition: var(--transition);
+            overflow: hidden;
+        }
 
-            /* Form Grid Stacking */
-            form div[style*="grid-template-columns"] {
-                grid-template-columns: 1fr !important;
-            }
+        .calendar-stat-text {
+            display: block;
+        }
+
+        .calendar-stat-dot {
+            display: none;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-right: 2px;
+        }
+
+        transform: translateX(-100%);
+        width: 280px;
+        box-shadow: 5px 0 25px rgba(0, 0, 0, 0.5);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .sidebar.active {
+            transform: translateX(0);
+        }
+
+        .main-content {
+            margin-left: 0;
+            padding: 1.5rem;
+            width: 100%;
+        }
+
+        header {
+            flex-direction: column-reverse;
+            align-items: flex-start;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .menu-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 1rem;
+        }
+
+        .page-title h1 {
+            font-size: 1.5rem;
+        }
+
+        .stats-grid {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+
+        .action-bar {
+            flex-direction: column;
+            gap: 1rem;
+            align-items: stretch;
+        }
+
+        .action-bar input {
+            width: 100% !important;
+        }
+
+        .btn {
+            justify-content: center;
+        }
+
+        .modal {
+            width: 95%;
+            padding: 1.5rem;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        /* Form Grid Stacking */
+        form div[style*="grid-template-columns"] {
+            grid-template-columns: 1fr !important;
+        }
         }
     </style>
 </head>
@@ -1546,12 +1612,19 @@
                     });
 
                     calendarGrid += `
-                        <div class="calendar-day" onclick="app.showDayDetail('${dateStr}')" 
-                             style="background: var(--bg-card); border: 1px solid var(--border); p-adding: 0.5rem; height: 120px; position: relative; cursor: pointer; transition: var(--transition); border-radius: 8px; overflow: hidden;">
-                            <div style="padding: 10px; display: flex; justify-content: space-between;">
+                        <div class="calendar-cell" onclick="app.showDayDetail('${dateStr}')">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                                 <span style="${isToday ? 'background: var(--primary); color: white; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 50%;' : 'color: var(--text-muted);'}">${d}</span>
+                                
+                                <!-- Mobile Dots -->
+                                <div style="display: flex; gap: 2px; align-items: center;">
+                                    ${workingCount > 0 ? `<span class="calendar-stat-dot" style="background: #34d399;"></span>` : ''}
+                                    ${leaveCount > 0 ? `<span class="calendar-stat-dot" style="background: var(--secondary);"></span>` : ''}
+                                </div>
                             </div>
-                            <div style="padding: 0 10px; font-size: 0.8rem;">
+                            
+                            <!-- Desktop Text -->
+                            <div class="calendar-stat-text" style="font-size: 0.8rem;">
                                 ${workingCount > 0 ? `<div style="color: #34d399; margin-bottom: 2px;">• ทำงาน: ${workingCount}</div>` : ''}
                                 ${leaveCount > 0 ? `<div style="color: var(--secondary); margin-bottom: 2px;">• ลา: ${leaveCount}</div>` : ''}
                             </div>
@@ -1560,22 +1633,24 @@
                 }
 
                 return `
-                    <div style="margin-bottom: 1rem; display: flex; gap: 1rem; align-items: center;">
-                        <button class="btn btn-secondary" onclick="app.changeMonth(-1)"><i class='bx bx-chevron-left'></i></button>
-                        <h2 style="width: 200px; text-align: center;">${monthNames[month]} ${year + 543}</h2>
-                        <button class="btn btn-secondary" onclick="app.changeMonth(1)"><i class='bx bx-chevron-right'></i></button>
+                    <div style="margin-bottom: 1rem; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 1rem; flex: 1;">
+                            <button class="btn btn-secondary" onclick="app.changeMonth(-1)"><i class='bx bx-chevron-left'></i></button>
+                            <h2 style="min-width: 150px; text-align: center; margin: 0;">${monthNames[month]} ${year + 543}</h2>
+                            <button class="btn btn-secondary" onclick="app.changeMonth(1)"><i class='bx bx-chevron-right'></i></button>
+                        </div>
                         
-                        <div style="margin-left: auto; display: flex; gap: 1rem;">
+                        <div style="display: flex; gap: 1rem; width: 100%; justify-content: center; margin-top: 0.5rem;">
                             <div class="stat-badge" style="background: rgba(236, 72, 153, 0.2); color: var(--secondary); padding: 5px 15px; border-radius: 20px; font-size: 0.9em;">
                                 <i class='bx bxs-calendar-x'></i> มีการลาเดือนนี้ ${totalLeaves} ครั้ง
                             </div>
                         </div>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; text-align: center; color: var(--text-muted); margin-bottom: 0.5rem;">
+                    <div class="calendar-grid" style="text-align: center; color: var(--text-muted); margin-bottom: 0.5rem;">
                         <div>อา.</div><div>จ.</div><div>อ.</div><div>พ.</div><div>พฤ.</div><div>ศ.</div><div>ส.</div>
                     </div>
-                    <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px;">
+                    <div class="calendar-grid">
                         ${calendarGrid}
                     </div>
 
