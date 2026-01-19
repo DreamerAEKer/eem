@@ -468,11 +468,9 @@
             flex-direction: column;
         }
 
-        .calendar-cell-empty {
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px dashed var(--border);
-            border-radius: 8px;
-            height: 120px;
+        .empty-slot {
+            background: rgba(255, 255, 255, 0.02) !important;
+            border: 1px dashed var(--border) !important;
         }
 
         .calendar-stat-text {
@@ -546,10 +544,7 @@
                 justify-content: flex-start;
             }
 
-            .calendar-cell-empty {
-                height: 55px !important;
-                min-height: 55px !important;
-            }
+
 
             .calendar-stat-text {
                 display: none !important;
@@ -1595,7 +1590,7 @@
 
                 // Empty slots before 1st
                 for (let i = 0; i < startDay; i++) {
-                    calendarGrid += `<div class="calendar-cell-empty"></div>`;
+                    calendarGrid += `<div class="calendar-cell empty-slot" style="cursor: default;"></div>`;
                 }
 
                 // Days
