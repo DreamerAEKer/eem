@@ -494,12 +494,15 @@
             background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: 8px;
-            height: 120px;
+            min-height: 120px;
+            height: auto;
             padding: 0.5rem;
             position: relative;
             cursor: pointer;
             transition: var(--transition);
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
 
         .calendar-stat-text {
@@ -514,77 +517,74 @@
             margin-right: 2px;
         }
 
-        transform: translateX(-100%);
-        width: 280px;
-        box-shadow: 5px 0 25px rgba(0, 0, 0, 0.5);
-        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
 
-        .sidebar.active {
-            transform: translateX(0);
-        }
 
-        .main-content {
-            margin-left: 0;
-            padding: 1.5rem;
-            width: 100%;
-        }
+        @media (max-width: 768px) {
+            .sidebar.active {
+                transform: translateX(0);
+            }
 
-        header {
-            flex-direction: column-reverse;
-            align-items: flex-start;
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
+            .main-content {
+                margin-left: 0;
+                padding: 1.5rem;
+                width: 100%;
+            }
 
-        .header-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-        }
+            header {
+                flex-direction: column-reverse;
+                align-items: flex-start;
+                gap: 1rem;
+                margin-bottom: 2rem;
+            }
 
-        .menu-toggle {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 1rem;
-        }
+            .header-top {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                width: 100%;
+            }
 
-        .page-title h1 {
-            font-size: 1.5rem;
-        }
+            .menu-toggle {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin-right: 1rem;
+            }
 
-        .stats-grid {
-            grid-template-columns: 1fr;
-            gap: 1rem;
-        }
+            .page-title h1 {
+                font-size: 1.5rem;
+            }
 
-        .action-bar {
-            flex-direction: column;
-            gap: 1rem;
-            align-items: stretch;
-        }
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
 
-        .action-bar input {
-            width: 100% !important;
-        }
+            .action-bar {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: stretch;
+            }
 
-        .btn {
-            justify-content: center;
-        }
+            .action-bar input {
+                width: 100% !important;
+            }
 
-        .modal {
-            width: 95%;
-            padding: 1.5rem;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
+            .btn {
+                justify-content: center;
+            }
 
-        /* Form Grid Stacking */
-        form div[style*="grid-template-columns"] {
-            grid-template-columns: 1fr !important;
-        }
+            .modal {
+                width: 95%;
+                padding: 1.5rem;
+                max-height: 90vh;
+                overflow-y: auto;
+            }
+
+            /* Form Grid Stacking */
+            form div[style*="grid-template-columns"] {
+                grid-template-columns: 1fr !important;
+            }
         }
     </style>
 </head>
